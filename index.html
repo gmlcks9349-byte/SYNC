@@ -892,7 +892,7 @@ async function generateWithClaude(apiKey, geminiResult, directorsNote, cutCount)
           messages: [{ role: 'user', content: userContent }]
         })
       });
-      if (!res.ok) { lastErr = new Error('Claude HTTP ' + res.status); continue; }
+      if (!res.ok) { const errBody = await res.json().catch(() => ({})); lastErr = new Error('Claude HTTP ' + res.status + ': ' + (errBody?.error?.message || JSON.stringify(errBody))); continue; }
       const data = await res.json();
       const text = data.content?.[0]?.text || '';
       return parseJson(text);
