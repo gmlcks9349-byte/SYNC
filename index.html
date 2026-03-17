@@ -773,28 +773,45 @@ async function analyzeWithGemini(apiKey, directorsNote, cutCount) {
   parts.push({ text: 'CUT COUNT: ' + cutCount });
   parts.push({ text: 'Primary subject default is Props image 1 unless Director\'s Note specifies otherwise. Analyze and output JSON only.' });
 
-  const systemPrompt = 'You are a Physics Bridge Director for a T2I image generation engine that has direct visual access to all uploaded images. ' +
-    'Your job is NOT to describe what images look like. Your job is to: ' +
-    '1. Classify Props (HUMAN / PRODUCT / HUMAN+PRODUCT / MULTI-SUBJECT-SINGLE-IMAGE). ' +
+  const systemPrompt = 'You are the Visual Intelligence Core of SYNC — a Physics Bridge Director with full visual access to all uploaded images. ' +
+    'You are the ONLY agent that sees the images. Your JSON output is the complete visual knowledge base that Claude will use to write prompts WITHOUT seeing any images. ' +
+    'Your descriptions must be precise enough that Claude can write accurate T2I prompts from your text alone. ' +
+    'TASKS: ' +
+    '1. CLASSIFY Props (HUMAN / PRODUCT / HUMAN+PRODUCT / MULTI-SUBJECT-SINGLE-IMAGE). ' +
     'Identify Primary Subject from Director\'s Note first; if Note is silent, default to Props image 1. ' +
-    'Assign primary_label (natural language name like "the aluminum luggage" or "the man"). ' +
-    '2. Extract References world physics: dominant_light, surface_contact, spatial_structure, world_physics. ' +
-    'If no Reference image, set baseline_applied:true. ' +
-    '3. Detect collision points between Props material and References light. Output synthesis_condition for each. ' +
-    '4. Parse Director\'s Note with these priority rules: ' +
+    'For primary subject, extract ALL of the following visual fields: ' +
+    'primary_label: natural language descriptor with key material and form cues (e.g. "the brushed aluminum trunk with vertical ribbed surface", "the man with lean athletic build in oversized black hoodie"). ' +
+    'form: physical structure, proportions, silhouette (e.g. "upright rectangular trunk, approximately 70cm tall, tapered corners, telescoping handle extended"). ' +
+    'material: surface material + optical behavior (e.g. "brushed aluminum, parallel vertical ribs, matte-specular mixed finish, low diffusion"). ' +
+    'color: dominant color + highlight/shadow distribution (e.g. "silver-white body, warm highlight at rib peaks, cool shadow in rib valleys"). ' +
+    'surface_physics: reflectivity type (e.g. "hard reflective, directional specular, minimal diffusion"). ' +
+    'hardware: notable detail components (e.g. "twin TSA combination locks, D-ring side handle, dual spinner wheels in matte black"). Leave empty string if HUMAN type. ' +
+    '2. EXTRACT Reference world physics. If no Reference, set baseline_applied:true and leave references_world fields empty. ' +
+    'dominant_light: light source direction + quality + color temperature. ' +
+    'surface_contact: floor/ground material + texture + color. ' +
+    'spatial_structure: depth, horizon placement, negative space description. ' +
+    'world_physics: overall physical atmosphere (contrast level, ambient fill, shadow behavior). ' +
+    'color_palette: 2-4 dominant environment colors using proper nouns (e.g. "warm ivory, terracotta orange, bleached white"). ' +
+    '3. EXTRACT visual_language — how the world and subject relate visually: ' +
+    'subject_presence: how subject occupies frame (e.g. "solitary, monolithic — trunk occupies lower two-thirds of frame"). ' +
+    'negative_space: description of empty areas (e.g. "generous upper third open to sky, subject never cropped"). ' +
+    'texture_hierarchy: which texture dominates (e.g. "aluminum rib pattern is primary texture, environment is secondary"). ' +
+    'light_mood: emotional/editorial register (e.g. "clean editorial, no drama, product legibility first"). ' +
+    '4. DETECT collision points between Props surface_physics and Reference dominant_light. Output synthesis_condition per collision. ' +
+    '5. PARSE Director\'s Note: ' +
     'Priority 1 — Explicit swap signal (치환/swap/replace/바꿔/갈아끼워/대신/instead of) -> strategy=SWAP+EXPAND, extract swap_target. ' +
-    'Priority 2 — No swap signal but atmosphere/mood/sequence direction -> strategy=EXPAND only, Cut 1 = GROUNDED ESTABLISH. ' +
-    'Priority 3 — Vague or empty Note -> strategy=EXPAND only, apply 1-3-1-1 default composition. ' +
-    'Priority 4 — Cut-specific directives -> map to cut_sequence indices as precisely as possible. ' +
-    'Set parsing_confidence: HIGH (explicit swap + clear expand) / MEDIUM (inferred strategy) / LOW (minimal input). ' +
-    '5. Build cut_sequence array for exactly ' + cutCount + ' cuts. ' +
-    'Cut types: SWAP (strategy must include SWAP), EXPAND. ' +
-    'Cut intents: ESTABLISH / GROUNDED / PUSHED / WILD. ' +
-    'Default composition if no override: 1 SWAP/ESTABLISH + majority GROUNDED + 1 PUSHED + 1 WILD. ' +
-    'If Director\'s Note overrides composition (e.g. "all natural") apply that fully. ' +
-    'Output only valid JSON. No markdown. No descriptions outside JSON values. ' +
-    'JSON structure: { "props_classification": { "type": "", "primary_source": "director_note|default", "primary": { "index": 1, "label": "[P]", "primary_label": "", "reason": "" }, "sub_assets": [], "multi_angle": [] }, ' +
-    '"references_world": { "dominant_light": "", "surface_contact": "", "spatial_structure": "", "world_physics": "" }, ' +
+    'Priority 2 — No swap signal but atmosphere/mood/direction -> strategy=EXPAND only, Cut 1 = GROUNDED ESTABLISH. ' +
+    'Priority 3 — Vague or empty -> strategy=EXPAND only, apply 1-3-1-1 default. ' +
+    'Priority 4 — Cut-specific directives -> map to cut_sequence indices. ' +
+    'Set parsing_confidence: HIGH / MEDIUM / LOW. ' +
+    '6. BUILD cut_sequence for exactly ' + cutCount + ' cuts. ' +
+    'Cut types: SWAP / EXPAND. Intents: ESTABLISH / GROUNDED / PUSHED / WILD. ' +
+    'Default: 1 SWAP/ESTABLISH + majority GROUNDED + 1 PUSHED + 1 WILD. Note override wins. ' +
+    'Output only valid JSON. No markdown. ' +
+    'JSON structure: { ' +
+    '"props_classification": { "type": "", "primary_source": "director_note|default", "primary": { "index": 1, "label": "[P]", "primary_label": "", "form": "", "material": "", "color": "", "surface_physics": "", "hardware": "", "reason": "" }, "sub_assets": [], "multi_angle": [] }, ' +
+    '"references_world": { "dominant_light": "", "surface_contact": "", "spatial_structure": "", "world_physics": "", "color_palette": "" }, ' +
+    '"visual_language": { "subject_presence": "", "negative_space": "", "texture_hierarchy": "", "light_mood": "" }, ' +
     '"baseline_applied": false, ' +
     '"collision_analysis": [ { "collision": "", "synthesis_condition": "" } ], ' +
     '"directors_note_parsed": { "strategy": "", "swap_target": "", "expand_logic": "", "parsing_confidence": "HIGH", "cut_sequence": [ { "cut": 1, "type": "SWAP", "intent": "ESTABLISH" } ] } }';
@@ -829,48 +846,33 @@ async function generateWithClaude(apiKey, geminiResult, directorsNote, cutCount)
   const primaryLabel = propsClass.primary?.primary_label || 'the subject';
   const baselineApplied = geminiResult.baseline_applied || false;
 
-  const systemPrompt = 'You are a Shot Designer for a T2I image generation engine that has direct visual access to all Props and References images uploaded by the user. ' +
-    'CRITICAL: The engine already sees every uploaded image. Do NOT describe what images look like. ' +
-    'DO declare physical synthesis conditions between Props and References. ' +
-    'Every prompt you write is a directive to an engine already holding both assets. ' +
-    'PRIMARY SUBJECT LABEL: Use "' + primaryLabel + '" as the subject name in all prompts. Never use [P] in output prompts. ' +
-    'BASELINE AESTHETICS (apply when no Reference): ' +
-    'Lighting: single soft key light optimized for Props material light_response. Quality: Vogue/Dior high-end editorial. ' +
+  const systemPrompt = 'You are a Shot Director for SYNC. You do NOT see any images. ' +
+    'Gemini has analyzed all images and provided a complete visual knowledge base in the Physics Report JSON. ' +
+    'Use ONLY the Physics Report JSON and Director\'s Note to design shots. ' +
+    'PRIMARY SUBJECT: Always use "' + primaryLabel + '" as the subject identifier in all prompts. Never use [P]. ' +
+    'BASELINE AESTHETICS (apply when baseline_applied is true): ' +
+    'Lighting: single soft key light optimized for subject surface_physics. Quality: Vogue/Dior high-end editorial. ' +
     'Camera by Props type — PRODUCT: Phase One XF 150mm macro. HUMAN: Leica SL2 85mm. HUMAN+PRODUCT: Hasselblad X2D 90mm. ' +
-    'Space: minimal studio or environment derived from Director\'s Note. ' +
-    'BASELINE APPLIED: ' + (baselineApplied ? 'YES — no Reference image, design world from Director\'s Note + baseline.' : 'NO — Reference world physics governs.') + ' ' +
-    'OUTPUT: For each cut, write a 7-layer shot directive as continuous prose (NORMAL) and as JSON keys (JSON). ' +
-    '7 layers in order: ' +
-    '① SCENE DIRECTIVE: Camera-subject spatial relationship for this cut. Never repeat same spatial setup across cuts. ' +
-    '② SUBJECT: If PRODUCT — declare material synthesis condition only. If HUMAN — physical posture state + clothing material. No facial description. If HUMAN+PRODUCT — both + physical interaction. ' +
-    '③ ENVIRONMENT: Active Reference surface and spatial elements for this cut. Never repeat same contact surface across cuts. ' +
-    '④ LIGHTING: One dominant light source — direction, quality, color temperature. Must be physically consistent with References world_physics or Baseline. Apply synthesis_condition if collision identified. ' +
-    '⑤ FILM/LENS: One camera body or lens reference. Match visual register of References world. ' +
-    '⑥ COLOR: Subject color + environment color relationship. Proper nouns only (Cobalt Blue, Warm Amber). State contrast or harmony. ' +
-    '⑦ TECHNICAL: Shot type, focal depth, focus plane. End every cut with: "Hyperrealistic cinematic still." ' +
+    'BASELINE APPLIED: ' + (baselineApplied ? 'YES — no Reference. Design world from Director\'s Note + baseline standards.' : 'NO — Reference world physics governs all cuts.') + ' ' +
+    'OUTPUT: For each cut, write a 7-layer shot directive as continuous prose (NORMAL) and as JSON keys. ' +
+    '7 layers — use Gemini JSON fields directly as your source material: ' +
+    '① SCENE DIRECTIVE: Camera-subject spatial relationship. Draw from visual_language.subject_presence and visual_language.negative_space. Never repeat same spatial setup. ' +
+    '② SUBJECT: Use primary.form + primary.material + primary.color to describe subject physical state. Apply collision_analysis.synthesis_condition where relevant. No facial description for HUMAN. ' +
+    '③ ENVIRONMENT: Draw from references_world surface_contact + spatial_structure. Never repeat same contact surface across cuts. ' +
+    '④ LIGHTING: One dominant source — draw from references_world.dominant_light or Baseline. Apply synthesis_condition if collision detected. Use visual_language.light_mood as register. ' +
+    '⑤ FILM/LENS: One camera body or lens. Match visual register of references_world or Baseline camera spec. ' +
+    '⑥ COLOR: Use primary.color + references_world.color_palette. State contrast or harmony with proper color nouns only (Cobalt Blue, Warm Amber). ' +
+    '⑦ TECHNICAL: Shot type, focal depth, focus plane. Draw from visual_language.texture_hierarchy for focus priority. End every cut with: "Hyperrealistic cinematic still." ' +
     'STRATEGIC RULES: ' +
-    'Cut 1 intent is defined by strategy. SWAP: replace swap_target with primary subject at identical position. EXPAND only: begin expansion sequence directly. ' +
-    'Every EXPAND cut maintains References world_physics as governing constraint. ' +
-    'Vary spatial relationship, camera angle, subject orientation — never repeat. ' +
+    'Cut 1 intent defined by strategy. SWAP: place primary subject at swap_target position with identical physics. EXPAND: begin sequence from Director\'s Note direction. ' +
+    'Every EXPAND cut maintains references_world.world_physics as governing constraint. ' +
+    'Vary spatial relationship, camera angle, subject orientation across all cuts — never repeat. ' +
     'Output only valid JSON. No markdown. ' +
     'JSON structure: { "sequence": [ { "cut": 1, "strategy": "SWAP", "intent": "ESTABLISH", "summary": "Korean 1-2 sentence summary", "prompt": "7-layer continuous prose", "json": { "scene_directive": "", "subject": "", "environment": "", "lighting": "", "film_lens": "", "color": "", "technical": "... Hyperrealistic cinematic still." } } ] }';
 
   const userContent = [];
-
   userContent.push({ type: 'text', text: 'GEMINI PHYSICS REPORT:\n' + JSON.stringify(geminiResult, null, 2) });
   userContent.push({ type: 'text', text: 'DIRECTOR\'S NOTE: ' + (directorsNote || '(none)') });
-  userContent.push({ type: 'text', text: 'PRIMARY SUBJECT LABEL TO USE IN PROMPTS: ' + primaryLabel });
-
-  state.propsFiles.forEach((p, i) => {
-    userContent.push({ type: 'text', text: 'Props ' + (i + 1) + (i === state.primaryIndex ? ' [PRIMARY]' : '') + ':' });
-    userContent.push({ type: 'image', source: { type: 'base64', media_type: p.mimeType, data: p.dataUrl.split(',')[1] } });
-  });
-
-  if (state.refFile) {
-    userContent.push({ type: 'text', text: 'Reference (world physics source):' });
-    userContent.push({ type: 'image', source: { type: 'base64', media_type: state.refFile.mimeType, data: state.refFile.dataUrl.split(',')[1] } });
-  }
-
   userContent.push({ type: 'text', text: 'Design exactly ' + cutCount + ' cuts following the cut_sequence from Gemini report. Output only valid JSON.' });
 
   let lastErr;
