@@ -800,13 +800,15 @@ async function analyzeWithGemini(apiKey, directorsNote, cutCount) {
     '4. DETECT collision points between Props surface_physics and Reference dominant_light. Output synthesis_condition per collision. ' +
     '5. PARSE Director\'s Note: ' +
     'Priority 1 — Explicit swap signal (치환/swap/replace/바꿔/갈아끼워/대신/instead of) -> strategy=SWAP+EXPAND, extract swap_target. ' +
-    'Priority 2 — No swap signal but atmosphere/mood/direction -> strategy=EXPAND only, Cut 1 = GROUNDED ESTABLISH. ' +
-    'Priority 3 — Vague or empty -> strategy=EXPAND only, apply 1-3-1-1 default. ' +
+    'Priority 2 — No swap signal but atmosphere/mood/direction -> strategy=EXPAND only. ' +
+    'Priority 3 — Vague or empty -> strategy=EXPAND only, Equal Biome default. ' +
     'Priority 4 — Cut-specific directives -> map to cut_sequence indices. ' +
     'Set parsing_confidence: HIGH / MEDIUM / LOW. ' +
     '6. BUILD cut_sequence for exactly ' + cutCount + ' cuts. ' +
-    'Cut types: SWAP / EXPAND. Intents: ESTABLISH / GROUNDED / PUSHED / WILD. ' +
-    'Default: 1 SWAP/ESTABLISH + majority GROUNDED + 1 PUSHED + 1 WILD. Note override wins. ' +
+    'EQUAL BIOME STRUCTURE: All cuts are equal intensity — no escalation arc. ' +
+    'Cut types: SWAP / EXPAND. All EXPAND cuts use intent GROUNDED only. ' +
+    'Default: if strategy includes SWAP, Cut 1 = SWAP/GROUNDED, remaining cuts = EXPAND/GROUNDED. ' +
+    'If EXPAND only: all cuts = EXPAND/GROUNDED. No PUSHED. No WILD. No arc. Note override wins. ' +
     'Output only valid JSON. No markdown. ' +
     'JSON structure: { ' +
     '"props_classification": { "type": "", "primary_source": "director_note|default", "primary": { "index": 1, "label": "[P]", "primary_label": "", "form": "", "material": "", "color": "", "surface_physics": "", "hardware": "", "reason": "" }, "sub_assets": [], "multi_angle": [] }, ' +
@@ -864,9 +866,12 @@ async function generateWithClaude(apiKey, geminiResult, directorsNote, cutCount)
     '⑥ COLOR: Use primary.color + references_world.color_palette. State contrast or harmony with proper color nouns only (Cobalt Blue, Warm Amber). ' +
     '⑦ TECHNICAL: Shot type, focal depth, focus plane. Draw from visual_language.texture_hierarchy for focus priority. End every cut with: "Hyperrealistic cinematic still." ' +
     'STRATEGIC RULES: ' +
-    'Cut 1 intent defined by strategy. SWAP: place primary subject at swap_target position with identical physics. EXPAND: begin sequence from Director\'s Note direction. ' +
-    'Every EXPAND cut maintains references_world.world_physics as governing constraint. ' +
-    'Vary spatial relationship, camera angle, subject orientation across all cuts — never repeat. ' +
+    'EQUAL BIOME STRUCTURE — no escalation arc. All cuts are equal intensity. ' +
+    'Cut 1: if strategy includes SWAP, place primary subject at swap_target position with identical physics. If EXPAND only, begin sequence directly. ' +
+    'Every cut maintains references_world.world_physics as governing constraint. ' +
+    'Fixed across all cuts: subject upright posture, same material register, same editorial lighting intensity. ' +
+    'Variable per cut: camera angle, subject position in frame, environment biome details, lighting color temperature derived from biome. ' +
+    'Vary spatial relationship and camera angle across all cuts — never repeat. ' +
     'Output only valid JSON. No markdown. ' +
     'JSON structure: { "sequence": [ { "cut": 1, "strategy": "SWAP", "intent": "ESTABLISH", "summary": "Korean 1-2 sentence summary", "prompt": "7-layer continuous prose", "json": { "scene_directive": "", "subject": "", "environment": "", "lighting": "", "film_lens": "", "color": "", "technical": "... Hyperrealistic cinematic still." } } ] }';
 
