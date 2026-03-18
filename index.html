@@ -327,8 +327,43 @@
   .upload-order-item { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--text-dim); line-height: 1.8; }
   .upload-order-item span { color: var(--accent); }
 
+  /* REF TYPE TOGGLE */
+  .ref-type-wrap {
+    display: none; margin-top: 6px;
+  }
+  .ref-type-wrap.visible { display: block; }
+  .ref-type-lbl { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--text-dimmer); letter-spacing: 1px; margin-bottom: 5px; }
+  .ref-type-toggle { display: flex; border: 1px solid var(--border); width: 100%; }
+  .ref-type-btn {
+    flex: 1; padding: 5px 0; background: transparent; border: none;
+    color: var(--text-dimmer); font-family: 'DM Mono', monospace; font-size: 9px;
+    letter-spacing: 1px; cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .ref-type-btn.active { background: var(--accent); color: var(--bg); }
+
+  /* PLATFORM INSTRUCTION */
+  .platform-instruction {
+    margin-top: 10px; padding: 8px 10px; border: 1px solid var(--accent-dim);
+    background: var(--bg-3); display: none;
+  }
+  .platform-instruction.visible { display: block; }
+  .platform-instruction-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+  }
+  .platform-instruction-title { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--accent); letter-spacing: 1px; }
+  .btn-copy-pi {
+    background: transparent; border: 1px solid var(--border); color: var(--text-dimmer);
+    font-family: 'DM Mono', monospace; font-size: 8px; padding: 2px 8px;
+    cursor: pointer; letter-spacing: 1px; transition: all 0.15s;
+  }
+  .btn-copy-pi:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-copy-pi.copied { border-color: var(--success); color: var(--success); }
+  .platform-instruction-text {
+    font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-dim);
+    line-height: 1.8; white-space: pre-wrap;
+  }
+
   /* MODAL */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
   .modal-overlay.open { display: flex; }
   .modal { background: var(--bg-2); border: 1px solid var(--border-bright); padding: 24px; width: 320px; }
   .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 2px; color: var(--accent); margin-bottom: 16px; }
@@ -440,6 +475,13 @@
           </div>
         </div>
         <div class="ref-none-note" id="ref-none-note">No reference — Claude designs world from Director's Note + Baseline Aesthetics.</div>
+        <div class="ref-type-wrap" id="ref-type-wrap">
+          <div class="ref-type-lbl">REFERENCE TYPE</div>
+          <div class="ref-type-toggle">
+            <button class="ref-type-btn active" id="ref-type-world" onclick="setRefType('world_physics')">WORLD</button>
+            <button class="ref-type-btn" id="ref-type-style" onclick="setRefType('style')">STYLE</button>
+          </div>
+        </div>
       </div>
 
       <!-- DIRECTOR'S NOTE -->
@@ -508,6 +550,14 @@
           <div id="cards-wrap"></div>
           <!-- Upload Order -->
           <div class="upload-order" id="upload-order"></div>
+          <!-- Platform Instruction -->
+          <div class="platform-instruction" id="platform-instruction">
+            <div class="platform-instruction-header">
+              <span class="platform-instruction-title">PLATFORM INSTRUCTION</span>
+              <button class="btn-copy-pi" id="btn-copy-pi" onclick="copyPlatformInstruction(this)">COPY</button>
+            </div>
+            <div class="platform-instruction-text" id="platform-instruction-text"></div>
+          </div>
         </div>
 
       </div>
@@ -548,6 +598,7 @@ const state = {
   propsFiles: [],       // {file, dataUrl, mimeType}
   primaryIndex: 0,      // index in propsFiles
   refFile: null,        // {file, dataUrl, mimeType} or null
+  refType: 'world_physics', // 'world_physics' | 'style' | 'none'
   currentResult: null,
   currentGemini: null,
   globalFmt: 'normal'
@@ -668,15 +719,26 @@ function addRefFile(file) {
     document.getElementById('ref-preview-img').src = ev.target.result;
     document.getElementById('ref-preview-wrap').style.display = 'block';
     document.getElementById('ref-none-note').style.display = 'none';
+    document.getElementById('ref-type-wrap').classList.add('visible');
   };
   reader.readAsDataURL(file);
 }
 
 function removeRef() {
   state.refFile = null;
+  state.refType = 'world_physics';
   document.getElementById('ref-drop-wrap').style.display = 'block';
   document.getElementById('ref-preview-wrap').style.display = 'none';
   document.getElementById('ref-none-note').style.display = 'block';
+  document.getElementById('ref-type-wrap').classList.remove('visible');
+  document.getElementById('ref-type-world').classList.add('active');
+  document.getElementById('ref-type-style').classList.remove('active');
+}
+
+function setRefType(type) {
+  state.refType = type;
+  document.getElementById('ref-type-world').classList.toggle('active', type === 'world_physics');
+  document.getElementById('ref-type-style').classList.toggle('active', type === 'style');
 }
 
 // ─── CUT COUNT ────────────────────────────────────────────
@@ -734,6 +796,7 @@ async function generate() {
     renderPhysicsReport(geminiResult);
     renderCards(claudeResult);
     renderUploadOrder(claudeResult, cutCount);
+    renderPlatformInstruction();
 
   } catch (err) {
     document.getElementById('out-generating').style.display = 'none';
@@ -816,6 +879,7 @@ async function analyzeWithGemini(apiKey, directorsNote, cutCount) {
     '"references_world": { "dominant_light": "", "surface_contact": "", "spatial_structure": "", "world_physics": "", "color_palette": "" }, ' +
     '"visual_language": { "subject_presence": "", "negative_space": "", "texture_hierarchy": "", "light_mood": "" }, ' +
     '"baseline_applied": false, ' +
+    '"reference_type": "world_physics", ' +
     '"collision_analysis": [ { "collision": "", "synthesis_condition": "" } ], ' +
     '"directors_note_parsed": { "strategy": "", "swap_target": "", "expand_logic": "", "parsing_confidence": "HIGH", "cut_sequence": [ { "cut": 1, "type": "EXPAND", "intent": "GROUNDED", "surface_note": "" } ] } }';
 
@@ -1003,6 +1067,34 @@ function renderCards(result) {
   });
 }
 
+// ─── RENDER PLATFORM INSTRUCTION ─────────────────────────
+function renderPlatformInstruction() {
+  const el = document.getElementById('platform-instruction');
+  const textEl = document.getElementById('platform-instruction-text');
+  const refType = state.refFile ? state.refType : 'none';
+
+  let text = '';
+  if (refType === 'style') {
+    text = 'Apply surface style from [Reference].\nMaintain subject framing, lighting, and background from [Props].';
+  } else if (refType === 'world_physics') {
+    text = 'Apply environment, lighting, and spatial physics from [Reference].\nMaintain subject identity from [Props].';
+  } else {
+    text = 'Maintain subject framing, lighting, and background from [Props].';
+  }
+
+  textEl.textContent = text;
+  el.classList.add('visible');
+}
+
+function copyPlatformInstruction(btn) {
+  const text = document.getElementById('platform-instruction-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
 // ─── RENDER UPLOAD ORDER ──────────────────────────────────
 function renderUploadOrder(result, cutCount) {
   const section = document.getElementById('upload-order');
@@ -1148,6 +1240,7 @@ function newSession() {
   state.propsFiles = [];
   state.primaryIndex = 0;
   state.refFile = null;
+  state.refType = 'world_physics';
   state.currentResult = null;
   state.currentGemini = null;
 
@@ -1156,6 +1249,9 @@ function newSession() {
   document.getElementById('ref-drop-wrap').style.display = 'block';
   document.getElementById('ref-preview-wrap').style.display = 'none';
   document.getElementById('ref-none-note').style.display = 'block';
+  document.getElementById('ref-type-wrap').classList.remove('visible');
+  document.getElementById('ref-type-world').classList.add('active');
+  document.getElementById('ref-type-style').classList.remove('active');
   document.getElementById('directors-note').value = '';
   document.getElementById('cut-slider').value = 6;
   document.getElementById('cut-val').textContent = '6';
@@ -1167,6 +1263,7 @@ function newSession() {
   document.getElementById('btn-new-session').style.display = 'none';
   document.getElementById('out-title').textContent = 'SYNC';
   document.getElementById('out-cuts-badge').textContent = '';
+  document.getElementById('platform-instruction').classList.remove('visible');
 }
 
 // ─── UTILS ────────────────────────────────────────────────
