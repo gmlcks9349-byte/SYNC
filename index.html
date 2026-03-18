@@ -802,21 +802,22 @@ async function analyzeWithGemini(apiKey, directorsNote, cutCount) {
     'Priority 1 — Explicit swap signal (치환/swap/replace/바꿔/갈아끼워/대신/instead of) -> strategy=SWAP+EXPAND, extract swap_target. ' +
     'Priority 2 — No swap signal but atmosphere/mood/direction -> strategy=EXPAND only. ' +
     'Priority 3 — Vague or empty -> strategy=EXPAND only, Equal Biome default. ' +
-    'Priority 4 — Cut-specific directives -> map to cut_sequence indices. ' +
+    'Priority 4 — Cut-specific directives: if Director\'s Note contains per-cut surface instructions (e.g. stickers, graphics, markings, overlays, color variations per cut), extract each as surface_note in cut_sequence. surface_note describes ONLY what is applied TO the subject surface — it never changes form, material, or structure. ' +
     'Set parsing_confidence: HIGH / MEDIUM / LOW. ' +
     '6. BUILD cut_sequence for exactly ' + cutCount + ' cuts. ' +
     'EQUAL BIOME STRUCTURE: All cuts are equal intensity — no escalation arc. ' +
     'Cut types: SWAP / EXPAND. All EXPAND cuts use intent GROUNDED only. ' +
     'Default: if strategy includes SWAP, Cut 1 = SWAP/GROUNDED, remaining cuts = EXPAND/GROUNDED. ' +
     'If EXPAND only: all cuts = EXPAND/GROUNDED. No PUSHED. No WILD. No arc. Note override wins. ' +
+    'surface_note default: empty string "" if no per-cut surface directive exists for that cut. ' +
     'Output only valid JSON. No markdown. ' +
     'JSON structure: { ' +
-    '"props_classification": { "type": "", "primary_source": "director_note|default", "primary": { "index": 1, "label": "[P]", "primary_label": "", "form": "", "material": "", "color": "", "surface_physics": "", "hardware": "", "reason": "" }, "sub_assets": [], "multi_angle": [] }, ' +
+    '"props_classification": { "type": "", "primary_source": "director_note|default", "primary": { "index": 1, "primary_label": "", "form": "", "material": "", "color": "", "surface_physics": "", "hardware": "", "reason": "" }, "sub_assets": [], "multi_angle": [] }, ' +
     '"references_world": { "dominant_light": "", "surface_contact": "", "spatial_structure": "", "world_physics": "", "color_palette": "" }, ' +
     '"visual_language": { "subject_presence": "", "negative_space": "", "texture_hierarchy": "", "light_mood": "" }, ' +
     '"baseline_applied": false, ' +
     '"collision_analysis": [ { "collision": "", "synthesis_condition": "" } ], ' +
-    '"directors_note_parsed": { "strategy": "", "swap_target": "", "expand_logic": "", "parsing_confidence": "HIGH", "cut_sequence": [ { "cut": 1, "type": "SWAP", "intent": "ESTABLISH" } ] } }';
+    '"directors_note_parsed": { "strategy": "", "swap_target": "", "expand_logic": "", "parsing_confidence": "HIGH", "cut_sequence": [ { "cut": 1, "type": "EXPAND", "intent": "GROUNDED", "surface_note": "" } ] } }';
 
   const body = {
     system_instruction: { parts: [{ text: systemPrompt }] },
@@ -859,7 +860,7 @@ async function generateWithClaude(apiKey, geminiResult, directorsNote, cutCount)
     'OUTPUT: For each cut, write a 7-layer shot directive as continuous prose (NORMAL) and as JSON keys. ' +
     '7 layers — use Gemini JSON fields directly as your source material: ' +
     '① SCENE DIRECTIVE: Camera-subject spatial relationship. Draw from visual_language.subject_presence and visual_language.negative_space. Never repeat same spatial setup. ' +
-    '② SUBJECT: Use primary.form + primary.material + primary.color to describe subject physical state. Apply collision_analysis.synthesis_condition where relevant. No facial description for HUMAN. ' +
+    '② SUBJECT: Use primary.form + primary.material + primary.color to describe subject physical state. Apply collision_analysis.synthesis_condition where relevant. If cut_sequence contains a non-empty surface_note for this cut, apply it to the subject surface description — surface_note overrides default clean surface. surface_note never alters form, material structure, or core identity. No facial description for HUMAN. ' +
     '③ ENVIRONMENT: Draw from references_world surface_contact + spatial_structure. Never repeat same contact surface across cuts. ' +
     '④ LIGHTING: One dominant source — draw from references_world.dominant_light or Baseline. Apply synthesis_condition if collision detected. Use visual_language.light_mood as register. ' +
     '⑤ FILM/LENS: One camera body or lens. Match visual register of references_world or Baseline camera spec. ' +
@@ -870,7 +871,7 @@ async function generateWithClaude(apiKey, geminiResult, directorsNote, cutCount)
     'Cut 1: if strategy includes SWAP, place primary subject at swap_target position with identical physics. If EXPAND only, begin sequence directly. ' +
     'Every cut maintains references_world.world_physics as governing constraint. ' +
     'Fixed across all cuts: subject upright posture, same material register, same editorial lighting intensity. ' +
-    'Variable per cut: camera angle, subject position in frame, environment biome details, lighting color temperature derived from biome. ' +
+    'Variable per cut: camera angle, subject position in frame, environment biome details, lighting color temperature derived from biome, surface variation per surface_note (if present). ' +
     'Vary spatial relationship and camera angle across all cuts — never repeat. ' +
     'Output only valid JSON. No markdown. ' +
     'JSON structure: { "sequence": [ { "cut": 1, "strategy": "SWAP", "intent": "ESTABLISH", "summary": "Korean 1-2 sentence summary", "prompt": "7-layer continuous prose", "json": { "scene_directive": "", "subject": "", "environment": "", "lighting": "", "film_lens": "", "color": "", "technical": "... Hyperrealistic cinematic still." } } ] }';
