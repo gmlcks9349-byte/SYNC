@@ -1080,9 +1080,9 @@ function renderPlatformInstruction() {
 
   let text = '';
   if (refType === 'style') {
-    text = 'Apply surface style from [Reference].\nMaintain subject framing, lighting, and background from [Props].';
+    text = 'Use [Reference] as sticker style reference only — extract illustration style, line weight, and color treatment. Do not reproduce [Reference] content or layout. Generate new sticker content as described in the prompt. Each sticker must have visible gaps between them.\nKeep the consistency of all other elements — subject framing, camera angle, background, lighting, and luggage form remain exactly as in [Props].';
   } else if (refType === 'world_physics') {
-    text = 'Apply environment, lighting, and spatial physics from [Reference].\nMaintain subject identity from [Props].';
+    text = 'Apply environment, lighting, and spatial physics from [Reference].\nKeep the consistency of all other elements — subject identity, form, material, surface, and structure remain exactly as in [Props].\nDo not alter the subject itself. Only the surrounding world changes.';
   } else {
     text = 'Maintain subject framing, lighting, and background from [Props].';
   }
