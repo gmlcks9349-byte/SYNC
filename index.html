@@ -914,7 +914,10 @@ async function generateWithClaude(apiKey, geminiResult, directorsNote, cutCount)
   const primaryLabel = propsClass.primary?.primary_label || 'the subject';
   const baselineApplied = geminiResult.baseline_applied || false;
 
-  const systemPrompt = 'You are a Shot Director for SYNC. You do NOT see any images. ' +
+  const systemPrompt = 'DIRECTOR\'S NOTE IS THE HIGHEST AUTHORITY. ' +
+    'Director\'s Note overrides all rules at every layer — if Note fixes any variable (camera angle, framing, background, lighting, surface, environment), treat it as immutable Fixed for the entire sequence. ' +
+    'All rules below are defaults that apply ONLY when Director\'s Note is silent on that variable. ' +
+    'You are a Shot Director for SYNC. You do NOT see any images. ' +
     'Gemini has analyzed all images and provided a complete visual knowledge base in the Physics Report JSON. ' +
     'Use ONLY the Physics Report JSON and Director\'s Note to design shots. ' +
     'PRIMARY SUBJECT: Always use "' + primaryLabel + '" as the subject identifier in all prompts. Never use [P]. ' +
@@ -937,7 +940,8 @@ async function generateWithClaude(apiKey, geminiResult, directorsNote, cutCount)
     'Every cut maintains references_world.world_physics as governing constraint. ' +
     'Fixed across all cuts: subject upright posture, same material register, same editorial lighting intensity. ' +
     'Variable per cut: camera angle, subject position in frame, environment biome details, lighting color temperature derived from biome, surface variation per surface_note (if present). ' +
-    'Vary spatial relationship and camera angle across all cuts — never repeat. ' +
+    'If Director\'s Note fixes camera angle or framing, those become Fixed — do not vary them. ' +
+    'Vary only variables that Director\'s Note has NOT fixed. Never repeat the same value for any single variable across cuts. ' +
     'Output only valid JSON. No markdown. ' +
     'JSON structure: { "sequence": [ { "cut": 1, "strategy": "SWAP", "intent": "ESTABLISH", "summary": "Korean 1-2 sentence summary", "prompt": "7-layer continuous prose", "json": { "scene_directive": "", "subject": "", "environment": "", "lighting": "", "film_lens": "", "color": "", "technical": "... Hyperrealistic cinematic still." } } ] }';
 
