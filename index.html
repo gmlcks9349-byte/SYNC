@@ -363,6 +363,53 @@
     line-height: 1.8; white-space: pre-wrap;
   }
 
+  /* EDIT PROMPT GENERATOR */
+  .edit-prompt-gen {
+    margin-top: 10px; padding: 8px 10px; border: 1px solid var(--border-bright);
+    background: var(--bg-3); display: none;
+  }
+  .edit-prompt-gen.visible { display: block; }
+  .edit-prompt-gen-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+  }
+  .edit-prompt-gen-title { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--text-dim); letter-spacing: 1px; }
+  .edit-prompt-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .edit-prompt-select {
+    background: var(--bg-4); border: 1px solid var(--border); color: var(--text-dim);
+    font-family: 'DM Mono', monospace; font-size: 9px; padding: 4px 8px;
+    cursor: pointer; flex-shrink: 0; appearance: none; letter-spacing: 0.5px;
+  }
+  .edit-prompt-select:focus { outline: none; border-color: var(--accent); }
+  .edit-prompt-input {
+    flex: 1; background: var(--bg-4); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 9px;
+    padding: 4px 8px; min-width: 0;
+  }
+  .edit-prompt-input:focus { outline: none; border-color: var(--accent); }
+  .edit-prompt-input::placeholder { color: var(--text-dimmer); }
+  .edit-prompt-output {
+    background: var(--bg-2); border: 1px solid var(--border); padding: 8px;
+    font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-dim);
+    line-height: 1.7; white-space: pre-wrap; word-break: break-word; display: none;
+    margin-top: 6px;
+  }
+  .edit-prompt-output.visible { display: block; }
+  .edit-prompt-actions { display: flex; gap: 6px; margin-top: 6px; }
+  .btn-edit-generate {
+    background: transparent; border: 1px solid var(--accent-dim); color: var(--accent);
+    font-family: 'DM Mono', monospace; font-size: 8px; padding: 3px 10px;
+    cursor: pointer; letter-spacing: 1px; transition: all 0.15s;
+  }
+  .btn-edit-generate:hover { background: rgba(232,180,160,0.1); }
+  .btn-edit-copy {
+    background: transparent; border: 1px solid var(--border); color: var(--text-dimmer);
+    font-family: 'DM Mono', monospace; font-size: 8px; padding: 3px 10px;
+    cursor: pointer; letter-spacing: 1px; transition: all 0.15s; display: none;
+  }
+  .btn-edit-copy.visible { display: block; }
+  .btn-edit-copy:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-edit-copy.copied { border-color: var(--success); color: var(--success); }
+
   /* MODAL */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
   .modal-overlay.open { display: flex; }
@@ -558,6 +605,29 @@
               <button class="btn-copy-pi" id="btn-copy-pi" onclick="copyPlatformInstruction(this)">COPY</button>
             </div>
             <div class="platform-instruction-text" id="platform-instruction-text"></div>
+          </div>
+          <!-- Edit Prompt Generator -->
+          <div class="edit-prompt-gen" id="edit-prompt-gen">
+            <div class="edit-prompt-gen-header">
+              <span class="edit-prompt-gen-title">EDIT PROMPT GENERATOR</span>
+            </div>
+            <div class="edit-prompt-row">
+              <select class="edit-prompt-select" id="edit-prompt-select">
+                <option value="background">background</option>
+                <option value="color of the subject">subject color</option>
+                <option value="lighting">lighting</option>
+                <option value="pose">pose</option>
+                <option value="surface">surface</option>
+                <option value="season">season</option>
+                <option value="custom">custom...</option>
+              </select>
+              <input class="edit-prompt-input" id="edit-prompt-input" type="text" placeholder="describe the change...">
+            </div>
+            <div class="edit-prompt-actions">
+              <button class="btn-edit-generate" onclick="generateEditPrompt()">GENERATE</button>
+              <button class="btn-edit-copy" id="btn-edit-copy" onclick="copyEditPrompt(this)">COPY</button>
+            </div>
+            <div class="edit-prompt-output" id="edit-prompt-output"></div>
           </div>
         </div>
 
@@ -1089,7 +1159,37 @@ function renderPlatformInstruction() {
 
   textEl.textContent = text;
   el.classList.add('visible');
+  document.getElementById('edit-prompt-gen').classList.add('visible');
 }
+
+function generateEditPrompt() {
+  const select = document.getElementById('edit-prompt-select');
+  const input = document.getElementById('edit-prompt-input').value.trim();
+  if (!input) { showToast('Describe the change first', 'error'); return; }
+
+  let variable = select.value;
+  if (variable === 'custom') {
+    variable = input.split(' ')[0].toLowerCase();
+  }
+
+  const output = 'Change the ' + variable + ' to ' + input + '. Keep the consistency of all the other things in the image except for changing the ' + variable + '.';
+
+  const outputEl = document.getElementById('edit-prompt-output');
+  const copyBtn = document.getElementById('btn-edit-copy');
+  outputEl.textContent = output;
+  outputEl.classList.add('visible');
+  copyBtn.classList.add('visible');
+}
+
+function copyEditPrompt(btn) {
+  const text = document.getElementById('edit-prompt-output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
 
 function copyPlatformInstruction(btn) {
   const text = document.getElementById('platform-instruction-text').textContent;
@@ -1269,6 +1369,12 @@ function newSession() {
   document.getElementById('out-title').textContent = 'SYNC';
   document.getElementById('out-cuts-badge').textContent = '';
   document.getElementById('platform-instruction').classList.remove('visible');
+  document.getElementById('edit-prompt-gen').classList.remove('visible');
+  document.getElementById('edit-prompt-output').classList.remove('visible');
+  document.getElementById('edit-prompt-output').textContent = '';
+  document.getElementById('edit-prompt-input').value = '';
+  document.getElementById('btn-edit-copy').classList.remove('visible');
+  document.getElementById('edit-prompt-select').value = 'background';
 }
 
 // ─── UTILS ────────────────────────────────────────────────
