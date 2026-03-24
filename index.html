@@ -830,7 +830,6 @@ function setGlobalFmt(fmt) {
 
 // ─── GENERATE ─────────────────────────────────────────────
 async function generate() {
-  if (state.propsFiles.length === 0) { showToast('Upload at least 1 Props image', 'error'); return; }
   const claudeKey = localStorage.getItem('claude_key');
   const geminiKey = localStorage.getItem('gemini_key');
   if (!geminiKey) { showToast('Gemini API key required', 'error'); openModal(); return; }
