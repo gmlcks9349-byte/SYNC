@@ -137,7 +137,10 @@
   }
   .img-preview-del:hover { color: var(--danger); }
 
-  /* CUT COUNT */
+  .img-condition-note {
+    font-family: 'DM Mono', monospace; font-size: 8px; color: var(--text-dimmer);
+    line-height: 1.7; padding: 6px 0; border-top: 1px solid var(--border); margin-top: 6px;
+  }
   .cut-row { display: flex; align-items: center; gap: 10px; }
   .cut-slider { flex: 1; accent-color: var(--accent); cursor: pointer; }
   .cut-val { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--accent); min-width: 24px; text-align: right; }
@@ -371,6 +374,7 @@
             <button class="img-preview-del" onclick="removeImg()">✕</button>
           </div>
         </div>
+        <div class="img-condition-note">피사체(인물/오브젝트)와 공간의 관계가 명확한 이미지. 추상, 텍스처 클로즈업, 군중, 텍스트 기반 이미지 미지원.</div>
       </div>
 
       <!-- CUT COUNT -->
@@ -582,16 +586,31 @@ async function analyzeWithGemini(apiKey) {
     'Your job is NOT to describe what you see technically. ' +
     'Your job is to read what makes this image work — the tension, the logic, the world it belongs to — and extract that as structured data. ' +
     'Output only valid JSON. No markdown. ' +
+    'LANGUAGE RULES: ' +
+    'thread, spatial_grammar, attitude, directions.description — write in Korean. ' +
+    'subject_type, fixed_visual, fixed_behavioral, variable, directions.title — write in English. ' +
     'EXTRACTION TASKS: ' +
-    '1. THREAD: The single visual logic that makes this image compelling. Not a description of what is in it — the tension or relationship between the subject and the space. One sentence in Korean. ' +
-    '2. SPATIAL_GRAMMAR: How does the subject inhabit the space. Does the subject follow or violate the space expected behavior. This is the core of the thread. One sentence in Korean. ' +
-    '3. ATTITUDE: The subject emotional or behavioral register — gaze direction, tension level, relationship to camera. One sentence in Korean. ' +
-    '4. FIXED: Elements that must remain identical across all cuts to preserve the thread. Ask: if this changes, does the thread break? If yes, it is fixed. List as array of short strings in Korean. ' +
-    '5. VARIABLE: What can change per cut while keeping the thread alive. Ask: if this changes, does the thread survive? If yes, it is variable. List as array of short strings in Korean. ' +
-    '6. SPACE_CHANGES: Will different cuts require different spaces/locations? true or false. ' +
-    '7. DIRECTIONS: Generate exactly 3 genuinely different sequence directions based on the thread. Each must be a real creative direction, not a variation of the same idea. ' +
+    '1. SUBJECT_TYPE: Classify the primary subject. Must be exactly one of: "person", "object", "person_with_object". ' +
+    '2. THREAD: The single visual logic that makes this image compelling. The tension or relationship between the subject and the space. One sentence in Korean. ' +
+    '3. SPATIAL_GRAMMAR: How the subject inhabits the space — does it follow or violate the space expected behavior. This is the core of the thread. One sentence in Korean. ' +
+    '4. ATTITUDE: The subject emotional or behavioral register — gaze direction, tension level, relationship to camera. One sentence in Korean. ' +
+    '5. FIXED_VISUAL: Visual properties NB2 can read directly from @img1 — material, color, form, silhouette. These do NOT go into the prompt. List in English. ' +
+    '6. FIXED_BEHAVIORAL: Properties NB2 cannot reliably read from @img1 alone — attitude, gaze direction, specific pose element, subject-object relationship. Ask: if this changes, does the thread break? These GO into the prompt as "same [element]". List in English. ' +
+    '7. VARIABLE: What can change per cut while keeping the thread alive. List in English. ' +
+    '8. SPACE_CHANGES: Will different cuts require different spaces/locations? true or false. ' +
+    '9. DIRECTIONS: Generate exactly 3 directions based on SUBJECT_TYPE. ' +
+    'If SUBJECT_TYPE is "person" or "person_with_object": ' +
+    'Direction 1 — different space where the subject naturally belongs, with a pose that follows that space grammar. ' +
+    'Direction 2 — different space where the subject creates unexpected tension, with a pose that still follows that space grammar. ' +
+    'Direction 3 — same type of space but extreme scale contrast — subject very small in a vast space, or very close filling the frame. ' +
+    'If SUBJECT_TYPE is "object": ' +
+    'Direction 1 — vary the space, preserve the object placement logic. ' +
+    'Direction 2 — vary the visual structure — framing, scale, camera angle. ' +
+    'Direction 3 — vary the tension type — change what the object contrasts or harmonizes with. ' +
+    'Each direction title: 2-5 words in English. Each description: one sentence in Korean. No two directions should feel like variations of each other. ' +
     'JSON structure: ' +
-    '{ "thread": "", "spatial_grammar": "", "attitude": "", "fixed": [""], "variable": [""], "space_changes": true, ' +
+    '{ "subject_type": "", "thread": "", "spatial_grammar": "", "attitude": "", ' +
+    '"fixed_visual": [""], "fixed_behavioral": [""], "variable": [""], "space_changes": true, ' +
     '"directions": [ { "id": 1, "title": "", "description": "" }, { "id": 2, "title": "", "description": "" }, { "id": 3, "title": "", "description": "" } ] }';
 
   const parts = [
@@ -712,20 +731,23 @@ async function generateWithClaude(apiKey, chosenDirection) {
     'and you output exactly ' + state.cutCount + ' cut prompts for Freepik NB2 (Nano Banana Pro). ' +
     'CORE RULES: ' +
     'You never describe what @img1 looks like. NB2 can see it directly. ' +
-    'Your prompts tell NB2 what to change or where to place the subject. Not what to keep. ' +
+    '@img1 already contains all visual properties — material, color, form, silhouette. Do not repeat these in the prompt. ' +
+    'Your prompts only specify: behavioral fixed elements + location + pose/angle. ' +
     'Every prompt begins with "@img1 —". ' +
+    'CRITICAL: The "prompt" field must be written ENTIRELY IN ENGLISH. No Korean anywhere in the prompt field. ' +
     'Write in object-listing language. Name what exists in the scene. ' +
     'Never use spatial relationship language: receding, flanking, occupying, framing, against, beside, juxtaposed, positioned. ' +
     'PROMPT STRUCTURE per cut: ' +
-    '@img1 — [FIXED elements as "same [element]"], [location], [pose or angle].' +
+    '@img1 — [fixed_behavioral elements as "same [element]"], [location], [pose or angle].' +
     (spaceChanges ? ' No same background.' : '') + ' ' +
-    'FIXED elements: use the fixed array from Gemini analysis. Write each as "same [element]". ' +
+    'FIXED_BEHAVIORAL: use ONLY the fixed_behavioral array from Gemini analysis. Write each as "same [element]". ' +
+    'Do NOT use fixed_visual — NB2 reads those from @img1 directly. ' +
     'LOCATION + POSE: derive from the chosen direction. ' +
     'Each cut must have a genuinely different location AND a genuinely different pose or angle. ' +
     'The pose must follow the spatial grammar of that specific location — as if the subject naturally belongs there. ' +
     'Never repeat the same location or pose across cuts. ' +
     'OUTPUT: valid JSON only. No markdown. ' +
-    'JSON: { "sequence": [ { "cut": 1, "summary": "한 줄 한국어 요약", "prompt": "@img1 — ..." } ] }';
+    'JSON: { "sequence": [ { "cut": 1, "summary": "한 줄 한국어 요약", "prompt": "@img1 — [ENGLISH ONLY]" } ] }';
 
   const userContent = [
     { type: 'text', text: 'GEMINI ANALYSIS:\n' + JSON.stringify(g, null, 2) },
